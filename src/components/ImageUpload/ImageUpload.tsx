@@ -1,20 +1,24 @@
 import React from "react";
-import { Button, message, Row, Col, Modal, Spin } from "antd";
-import { doOCR } from "../../utils/ocrUtil";
+import { message, Row, Col, Modal, Spin, Table, Button } from "antd";
+import { doOCR, idxToCol, spaceToTabs } from "../../utils/ocrUtil";
 import { InboxOutlined } from "@ant-design/icons";
 import { UploadProps } from "antd/es/upload/Upload";
 import Dragger from "antd/es/upload/Dragger";
+import { ColumnsType } from "antd/es/table";
 
 interface ImageUploadProps {}
 
 const supported = ["tif", "tiff", "jpg", "jpeg", "bmp", "png"];
 
 const ImageUpload: React.FC<ImageUploadProps> = (props) => {
-	const [text, setText] = React.useState<string>("Selection");
+	const [text, setText] = React.useState<string>("");
+	const [dataSource, setDataSource] = React.useState<any[]>([]);
+	const [columns, setColumns] = React.useState<any>();
 	const [selected, setSelected] = React.useState<string>("");
 	const [uploadingMsg, setUploadingMsg] = React.useState<string | undefined>(undefined);
 	const [image, setImage] = React.useState<string | null>(null);
 	const [filename, setFilename] = React.useState<string>("No file loaded");
+	const [view, setView] = React.useState<"table" | "text">("table");
 
 	const textareaRef = React.useRef<HTMLTextAreaElement>(null);
 
@@ -45,6 +49,9 @@ const ImageUpload: React.FC<ImageUploadProps> = (props) => {
 	function clear() {
 		setText("");
 		setSelected("");
+		setImage(null);
+		setDataSource([]);
+		setColumns(undefined);
 	}
 	const dragProps: UploadProps = {
 		name: "file",
@@ -71,8 +78,42 @@ const ImageUpload: React.FC<ImageUploadProps> = (props) => {
 					reader.readAsDataURL(info.file.originFileObj);
 					setUploadingMsg("Extracting text...");
 					doOCR(info.file.originFileObj)
-						.then((bla: any) => {
-							setText(bla.text);
+						.then((res: any) => {
+							setText(res.text);
+							const str = spaceToTabs(res.text);
+							const data: any[] = [];
+							const rows = str.split("\n");
+							for (let row of rows) {
+								const cols = row.split("\t");
+								data.push(cols);
+							}
+							// Find the maximum length of any row
+							const maxRowLength = Math.max(...data.map((row) => row.length));
+
+							// Generate columns dynamically based on the maximum row length
+							const columns: ColumnsType<any> = Array.from({ length: maxRowLength + 1 }, (_, index) => ({
+								title: idxToCol(index),
+								dataIndex: `col${index + 1}`,
+								key: `col${index + 1}`,
+							}));
+							columns.unshift({
+								title: "",
+								dataIndex: `key`,
+								rowScope: "row",
+							});
+							setColumns(columns);
+
+							// Generate a unique key for each row
+							const newDataSource = data.map((row, rowIndex) =>
+								row.reduce(
+									(acc: any, cell: any, columnIndex: any) => ({
+										...acc,
+										[`col${columnIndex + 1}`]: cell,
+									}),
+									{ key: rowIndex + 1 }
+								)
+							);
+							setDataSource(newDataSource);
 						})
 						.catch(() => message.error("Unable to process your file"))
 						.finally(() => {
@@ -100,15 +141,29 @@ const ImageUpload: React.FC<ImageUploadProps> = (props) => {
 					</div>
 				</Col>
 				<Col span={12}>
-					<textarea
-						style={{ height: "50vh", width: "100%" }}
-						ref={textareaRef}
-						value={text}
-						onChange={(e) => {
-							setText(e.target.value);
-						}}
-						onSelect={onSelect}
-					></textarea>
+					{view === "text" ? (
+						<textarea
+							style={{ height: "50vh", width: "100%" }}
+							ref={textareaRef}
+							value={text}
+							onChange={(e) => {
+								setText(e.target.value);
+							}}
+							onSelect={onSelect}
+						></textarea>
+					) : (
+						<div style={{ border: "solid black 1px", height: "50vh", overflow: "scroll" }}>
+							{dataSource.length > 0 && (
+								<Table
+									size="small"
+									bordered={true}
+									dataSource={dataSource}
+									columns={columns}
+									pagination={false}
+								/>
+							)}
+						</div>
+					)}
 				</Col>
 			</Row>
 			<Row justify="center" gutter={25} style={{ marginTop: "25px" }}>
