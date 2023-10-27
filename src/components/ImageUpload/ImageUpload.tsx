@@ -1,6 +1,6 @@
 import React from "react";
 import { message, Row, Col, Modal, Spin, Table, Button, Switch } from "antd";
-import { doOCR, idxToCol, spaceToTabs } from "../../utils/ocrUtil";
+import { doOCR, idxToCol, invoiceToTable } from "../../utils/ocrUtil";
 import { InboxOutlined } from "@ant-design/icons";
 import { UploadProps } from "antd/es/upload/Upload";
 import Dragger from "antd/es/upload/Dragger";
@@ -8,17 +8,18 @@ import { ColumnsType } from "antd/es/table";
 
 interface ImageUploadProps {}
 
-const supported = ["tif", "tiff", "jpg", "jpeg", "bmp", "png", "pdf"];
+const supported = ["tif", "tiff", "jpg", "jpeg", "bmp", "png"];
 
 const ImageUpload: React.FC<ImageUploadProps> = (props) => {
 	const [text, setText] = React.useState<string>("");
-	const [dataSource, setDataSource] = React.useState<any[]>([]);
+	const [dataSource, setDataSource] = React.useState<string[][]>([]);
+	const [dataTable, setDataTable] = React.useState<any[]>([]);
 	const [columns, setColumns] = React.useState<any>();
 	const [selected, setSelected] = React.useState<string>("");
 	const [uploadingMsg, setUploadingMsg] = React.useState<string | undefined>(undefined);
 	const [image, setImage] = React.useState<string | null>(null);
 	const [filename, setFilename] = React.useState<string>("No file loaded");
-	const [view, setView] = React.useState<"table" | "text">("text");
+	const [view, setView] = React.useState<"table" | "text">("table");
 
 	const textareaRef = React.useRef<HTMLTextAreaElement>(null);
 
@@ -44,6 +45,14 @@ const ImageUpload: React.FC<ImageUploadProps> = (props) => {
 		});
 	}
 
+	function onCopyTable() {
+		const toCopy: string = dataTable.map((row) => row.join("\t")).join("\n");
+		navigator.clipboard.writeText(toCopy).then(() => {
+			message.success("Table copied to clipboard");
+			setSelected("");
+		});
+	}
+
 	function clear() {
 		setText("");
 		setSelected("");
@@ -51,6 +60,7 @@ const ImageUpload: React.FC<ImageUploadProps> = (props) => {
 		setDataSource([]);
 		setColumns(undefined);
 	}
+
 	const dragProps: UploadProps = {
 		name: "file",
 		beforeUpload(file) {
@@ -80,13 +90,9 @@ const ImageUpload: React.FC<ImageUploadProps> = (props) => {
 					doOCR(info.file.originFileObj)
 						.then((text: string) => {
 							setText(text);
-							const str = spaceToTabs(text);
-							const data: any[] = [];
-							const rows = str.split("\n");
-							for (let row of rows) {
-								const cols = row.split("\t");
-								data.push(cols);
-							}
+							const data = invoiceToTable(text);
+							setDataTable(data);
+
 							// Find the maximum length of any row
 							const maxRowLength = Math.max(...data.map((row) => row.length));
 
@@ -115,7 +121,7 @@ const ImageUpload: React.FC<ImageUploadProps> = (props) => {
 							);
 							setDataSource(newDataSource);
 						})
-						.catch(() => message.error("Unable to process your file"))
+						.catch((error) => message.error("Unable to process your file: " + error))
 						.finally(() => {
 							setUploadingMsg(undefined);
 						});
@@ -151,7 +157,7 @@ const ImageUpload: React.FC<ImageUploadProps> = (props) => {
 						<div style={{ height: "50vh", width: "100%", border: "solid black 1px" }}>
 							<textarea
 								style={{
-									height: "calc(100% - 32px - 25px)",
+									height: "calc(50vh - 32px - 32px)",
 									width: "95%",
 									border: "none",
 								}}
@@ -162,7 +168,7 @@ const ImageUpload: React.FC<ImageUploadProps> = (props) => {
 								}}
 								onSelect={onSelect}
 							></textarea>
-							<Row justify="center" gutter={25} style={{ marginTop: "0" }}>
+							<Row justify="center" gutter={25} style={{ marginTop: "15px" }}>
 								<Col>
 									<Button type="primary" onClick={onCopyAsTable}>
 										Copy Selection as Table
@@ -171,27 +177,36 @@ const ImageUpload: React.FC<ImageUploadProps> = (props) => {
 							</Row>
 						</div>
 					) : (
-						<div style={{ border: "solid black 1px", height: "50vh", overflow: "scroll" }}>
+						<div style={{ border: "solid black 1px", height: "50vh" }}>
 							{dataSource.length > 0 && (
-								<Table
-									size="small"
-									bordered={true}
-									dataSource={dataSource}
-									columns={columns}
-									pagination={false}
-								/>
+								<div style={{ height: "calc(50vh - 32px - 25px)", overflow: "scroll" }}>
+									<Table
+										size="small"
+										bordered={true}
+										dataSource={dataSource}
+										columns={columns}
+										pagination={false}
+									/>
+								</div>
 							)}
+							<Row justify="center" gutter={25} style={{ marginTop: "15px" }}>
+								<Col>
+									<Button type="primary" onClick={onCopyTable}>
+										Copy Table
+									</Button>
+								</Col>
+							</Row>
 						</div>
 					)}
 				</Col>
 			</Row>
 			<Row align="middle" justify="end" style={{ padding: "25px" }}>
-				<label>View as Table</label>
+				<label>View as Text</label>
 				<Switch
 					style={{ marginLeft: "10px" }}
-					checked={view === "table"}
+					checked={view === "text"}
 					onChange={(checked) => {
-						setView(checked ? "table" : "text");
+						setView(checked ? "text" : "table");
 					}}
 				></Switch>
 			</Row>
