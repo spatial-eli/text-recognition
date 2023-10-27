@@ -48,18 +48,16 @@ export function invoiceToTable(str: string): any[] {
 			entry[4] = tokens[tokens.length - 4];
 
 			// Check for HS code
-			let descriptionIdx = tokens.length - 5;
 			const maybeHS = tokens[tokens.length - 5];
 			if (maybeHS.length === 10 && !isNaN(parseFloat(maybeHS))) {
 				entry[3] = maybeHS;
-				descriptionIdx--;
 			}
-			const description = tokens.splice(2, descriptionIdx);
+			const description = tokens.splice(2, tokens.length - 6);
 			if (description !== undefined) {
 				entry[1] = description.join(" ");
 			}
 		} else if (i % 3 === 1) {
-			entry[2] = tokens[0];
+			entry[2] = row;
 			table.push(entry);
 		}
 	}
