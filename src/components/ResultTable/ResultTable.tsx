@@ -8,7 +8,7 @@ import styles from "./ResultTable.module.css";
 interface ResultTableProps {
 	text: string;
 }
-
+const COLUMN_TITLES = ["Qty", "Description", "Parts", "HSC", "CO", "Value", "Total"];
 const EditableCell: React.FC<any> = ({ editing, dataIndex, title, record, index, children, onSave, ...restProps }) => {
 	restProps.style = {
 		whiteSpace: "normal",
@@ -40,7 +40,7 @@ const ResultTable: FC<ResultTableProps> = (props) => {
 	}
 
 	function onCopyTable() {
-		const toCopy: string = dataTable.map((row) => row.join("\t")).join("\n");
+		const toCopy: string = dataTable.map((row) => row.splice(0, row.length - 1).join("\t")).join("\n");
 		navigator.clipboard.writeText(toCopy).then(() => {
 			message.success("Table copied to clipboard");
 		});
@@ -64,7 +64,7 @@ const ResultTable: FC<ResultTableProps> = (props) => {
 	function initColumns() {
 		// Generate columns
 		const cols: ColumnsType<any> = Array.from({ length: 7 }, (_, index) => ({
-			title: idxToCol(index),
+			title: COLUMN_TITLES[index],
 			dataIndex: index + 1,
 			key: index + 1,
 		}));
