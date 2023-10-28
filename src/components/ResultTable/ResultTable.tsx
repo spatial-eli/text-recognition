@@ -2,7 +2,7 @@ import { Button, Col, Input, message, Row, Table, Tooltip } from "antd";
 import { EditOutlined } from "@ant-design/icons";
 import { ColumnsType } from "antd/es/table";
 import React, { FC } from "react";
-import { idxToCol, invoiceToTable } from "../../utils/ocrUtil";
+import { idxToCol, invoiceToTable, validateField } from "../../utils/ocrUtil";
 import styles from "./ResultTable.module.css";
 
 interface ResultTableProps {
@@ -12,7 +12,8 @@ interface ResultTableProps {
 const EditableCell: React.FC<any> = ({ editing, dataIndex, title, record, index, children, onSave, ...restProps }) => {
 	restProps.style = {
 		whiteSpace: "normal",
-		background: dataIndex === "key" ? "rgb(240,240,240,0.5)" : "transparent",
+		background:
+			dataIndex === "key" ? "rgb(240,240,240,0.5)" : validateField(dataIndex, record) ? "transparent" : "yellow",
 	};
 	return (
 		<td {...restProps}>
